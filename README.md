@@ -1,7 +1,7 @@
 # UFLD-Compress
 
 فریم‌ورک فشرده‌سازی **Ultra-Fast-Lane-Detection v1** ([cfzd](https://github.com/cfzd/Ultra-Fast-Lane-Detection)) — ResNet-18 / TuSimple —
-برای استقرار روی **Raspberry Pi 5**، قابل اجرا روی CPU (طراحی‌شده برای Ryzen 5 5500U).
+برای استقرار روی **Raspberry Pi 5**، قابل اجرا روی CPU 
 
 ```
 ufld_compress/
@@ -45,10 +45,3 @@ KD.Trainer(student, train_loader, KD.TrainConfig(kd_weight=1, loc_weight=1), tea
 onnx = Q.export_onnx(student, "out/student.onnx")
 int8 = Q.ort_quantize_static(onnx, "out/student_int8.onnx", calib_batches, method="percentile")
 ```
-
-## نکته‌ها
-- **5500U:** `num_threads=6` (هسته‌ی فیزیکی)، `num_workers=2`. روی ویندوز RAPL در دسترس نیست و انرژی تخمینی است (`energy_method=estimate`)؛ روی لینوکس:
-  `sudo chmod -R a+r /sys/class/powercap/intel-rapl` تا انرژی واقعی پکیج CPU خوانده شود.
-- **Pi 5:** مسیر پیشنهادی ONNX Runtime + INT8 استاتیک روی مدل هرس‌شده است. برای PyTorch روی ARM موتور `qnnpack` استفاده می‌شود.
-- `torch.ao.quantization` در PyTorch در وضعیت «phase-out» است (بدون قابلیت جدید) ولی همچنان کار می‌کند؛ مسیر ONNX Runtime به آن وابسته نیست.
-- Latency روی x86 برای مقایسه‌ی نسبی است؛ عدد نهایی را با `scripts/pi5_benchmark.py` روی خود Pi بگیرید.
