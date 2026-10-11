@@ -1,0 +1,17 @@
+# PyTorch CPU build first:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+torchvision>=0.17
+numpy
+pillow
+opencv-python
+pandas
+matplotlib
+tqdm
+psutil
+onnx
+onnxruntime>=1.17
+onnxscript        # only used if the legacy ONNX exporter is unavailable
+mlflow>=2.10
+tensorboard
+jupyter

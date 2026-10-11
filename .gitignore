@@ -1,0 +1,9 @@
+data/
+weights/
+outputs/
+mlruns/
+mlartifacts/
+mlflow.db
+__pycache__/
+*.onnx
+.ipynb_checkpoints/
