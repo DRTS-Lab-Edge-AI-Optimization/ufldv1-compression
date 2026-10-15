@@ -1,47 +1,109 @@
 # UFLD-Compress
 
-فریم‌ورک فشرده‌سازی **Ultra-Fast-Lane-Detection v1** ([cfzd](https://github.com/cfzd/Ultra-Fast-Lane-Detection)) — ResNet-18 / TuSimple —
-برای استقرار روی **Raspberry Pi 5**، قابل اجرا روی CPU 
+A compression framework for **Ultra-Fast-Lane-Detection v1** ([cfzd/Ultra-Fast-Lane-Detection](https://github.com/cfzd/Ultra-Fast-Lane-Detection)), using ResNet-18 and the TuSimple dataset.
 
-```
+Designed for deployment on the **Raspberry Pi 5**, with CPU inference support.
+
+## Project Structure
+
+```text
 ufld_compress/
-  config.py        پیکربندی (row anchorها، ابعاد، مسیرها، تعداد رشته‌ها)
-  model.py         UFLDNet سازگار با tusimple_18.pth + دانش‌آموزهای MobileNetV2/V3
-  data.py          دیتاست TuSimple (ساخت برچسب در حافظه، بدون convert_tusimple.py) + داده‌ی مصنوعی
-  lane_utils.py    پس‌پردازش و LaneEval رسمی TuSimple (فقط NumPy؛ روی Pi بدون PyTorch کار می‌کند)
-  evaluation.py    Accuracy / FP / FN / F1 + هم‌خوانی با مدل معلم
-  runners.py       اجرای یکسان PyTorch و ONNX Runtime
-  profiling.py     پارامتر، sparsity، اندازه، MACs/FLOPs/BOPs، latency، حافظه (ایزوله)، torch.profiler
-  energy.py        انرژی: RAPL (لینوکس) / PMIC رزبری‌پای ۵ / تخمین
-  quantization.py  Dynamic، Static PTQ (FX)، QAT، ONNX Runtime dynamic/static (MinMax/Entropy/Percentile)
-  pruning.py       Unstructured (global/layer/random)، AGP، Structured channel (L1/L2/BN-γ/Taylor/random)، BN recalibration
-  distillation.py  Logit / Location / Feature (FitNets) / Attention-Transfer KD + Trainer
-  tracking.py      MLflow
-  benchmark.py     ارزیابی + پروفایل + ثبت هر نسخه، جدول نتایج و نمودار Pareto
-notebooks/ufld_compression.ipynb   همه‌ی آزمایش‌ها
-scripts/smoke_test.py              تست سریع همه‌ی روش‌ها روی داده‌ی مصنوعی
-scripts/pi5_benchmark.py           بنچمارک ONNX روی Pi 5 (latency، انرژی PMIC، حافظه، دقت، دمو ویدئو) + MLflow
+  config.py         Configuration (row anchors, dimensions, paths, thread count)
+  model.py          UFLDNet compatible with tusimple_18.pth + MobileNetV2/V3 students
+  data.py           TuSimple dataset (in-memory label generation, no convert_tusimple.py required) + synthetic data
+  lane_utils.py     Post-processing and official TuSimple LaneEval (NumPy only; runs on Pi without PyTorch)
+  evaluation.py     Accuracy / FP / FN / F1 + teacher-model consistency
+  runners.py        Unified PyTorch and ONNX Runtime inference
+  profiling.py      Parameters, sparsity, model size, MACs/FLOPs/BOPs, latency, isolated memory profiling, torch.profiler
+  energy.py         Energy measurement: RAPL (Linux) / Raspberry Pi 5 PMIC / estimation
+  quantization.py   Dynamic quantization, static PTQ (FX), QAT, ONNX Runtime dynamic/static quantization (MinMax/Entropy/Percentile)
+  pruning.py        Unstructured pruning (global/layer/random), AGP, structured channel pruning (L1/L2/BN-γ/Taylor/random), BN recalibration
+  distillation.py   Logit / Location / Feature (FitNets) / Attention Transfer knowledge distillation + trainer
+  tracking.py       MLflow experiment tracking
+  benchmark.py      Evaluation, profiling, experiment tracking, results tables, and Pareto plots
+
+notebooks/
+  ufld_compression.ipynb   All experiments
+
+scripts/
+  smoke_test.py            Quick test of all methods using synthetic data
+  pi5_benchmark.py         ONNX benchmarking on Pi 5 (latency, PMIC energy, memory, accuracy, video demo) + MLflow
 ```
 
-## شروع سریع
+## Quick Start
+
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
-python scripts/smoke_test.py            # ~5 دقیقه، همه باید OK باشند
+
+# Run all smoke tests (approximately 5 minutes)
+python scripts/smoke_test.py
+
+# Launch the experiment notebook
 jupyter lab notebooks/ufld_compression.ipynb
+
+# Launch the MLflow UI
 mlflow ui --backend-store-uri sqlite:///mlflow.db
+
+# Launch TensorBoard
 tensorboard --logdir outputs/tensorboard
 ```
-داده: `data/tusimple/` (clips + `label_data_*.json` + `test_label.json`) — وزن: `weights/tusimple_18.pth`.
 
-## استفاده‌ی مستقیم از API
+### Dataset and Checkpoint
+
+- **Dataset:** `data/tusimple/` — contains video clips, `label_data_*.json`, and `test_label.json`.
+- **Pretrained weights:** `weights/tusimple_18.pth`.
+
+## Direct API Usage
+
 ```python
 from ufld_compress.config import Config
 from ufld_compress import model as M, quantization as Q, pruning as PR, distillation as KD
-cfg = Config(data_root="data/tusimple", checkpoint="weights/tusimple_18.pth")
+
+# Configure the dataset and pretrained checkpoint
+cfg = Config(
+    data_root="data/tusimple",
+    checkpoint="weights/tusimple_18.pth"
+)
+
+# Build the teacher model
 teacher = M.build_teacher(cfg)
-student = PR.channel_prune(teacher, ratio=0.5, criterion="l1", fc_ratio=0.75)        # ساختاری
-KD.Trainer(student, train_loader, KD.TrainConfig(kd_weight=1, loc_weight=1), teacher=teacher).fit()  # بازیابی با KD
+
+# Structurally prune the teacher model
+student = PR.channel_prune(
+    teacher,
+    ratio=0.5,
+    criterion="l1",
+    fc_ratio=0.75
+)
+
+# Recover accuracy through knowledge distillation
+KD.Trainer(
+    student,
+    train_loader,
+    KD.TrainConfig(kd_weight=1, loc_weight=1),
+    teacher=teacher
+).fit()
+
+# Export the student model to ONNX
 onnx = Q.export_onnx(student, "out/student.onnx")
-int8 = Q.ort_quantize_static(onnx, "out/student_int8.onnx", calib_batches, method="percentile")
+
+# Apply static INT8 quantization using percentile calibration
+int8 = Q.ort_quantize_static(
+    onnx,
+    "out/student_int8.onnx",
+    calib_batches,
+    method="percentile"
+)
 ```
+
+## Key Features
+
+- **Model Compression:** Unstructured and structured channel pruning.
+- **Quantization:** Dynamic quantization, post-training quantization (PTQ), and quantization-aware training (QAT).
+- **Knowledge Distillation:** Logit-based, location-based, feature-based, and attention-transfer distillation.
+- **Evaluation:** Lane detection accuracy, false positives (FP), false negatives (FN), and F1 score.
+- **Performance Profiling:** Model size, parameter count, sparsity, MACs/FLOPs/BOPs, latency, and memory usage.
+- **Energy Measurement:** Raspberry Pi 5 PMIC readings, Linux RAPL, and estimation-based methods.
+- **Experiment Tracking:** MLflow integration, benchmark comparisons, and Pareto-frontier visualization.
+- **Edge Deployment:** ONNX Runtime inference and benchmarking on Raspberry Pi 5.
