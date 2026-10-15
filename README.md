@@ -51,9 +51,11 @@ tensorboard --logdir outputs/tensorboard
 
 ### Dataset and Checkpoint
 
-- **Dataset:** `data/tusimple/` — contains video clips, `label_data_*.json`, and `test_label.json`.
-- **Pretrained weights:** `weights/tusimple_18.pth`.
+- **Dataset:** Dataset is TuSimple it should be added to `data/tusimple/` — contains video clips, `label_data_*.json`, and `test_label.json`.
+- **Pretrained weights:** UFLDv1 TuSimple with resnet 18 can be downloaded from official UFLDv1 github repository. It should be placed in `weights/tusimple_18.pth`.
+- **Pruned weights:** pth files of the pruned model can be downloaded at: https://drive.google.com/drive/folders/18yhyHDl8kdn_dsbgMhNkF2TlPokTsTG8?usp=sharing.
 
+- 
 ### ONNX Files
 
 
